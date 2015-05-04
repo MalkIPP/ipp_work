@@ -52,3 +52,11 @@ docs/_build/
 
 # PyBuilder
 target/
+
+.spyderproject
+
+*.xml
+
+.idea/.name
+
+.idea/ipp_work.iml
