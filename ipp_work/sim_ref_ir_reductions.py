@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
-from openfisca_france.reforms import ir_reduc
+from ipp_work.reforms import ir_reduc
 
 
 def wavg(groupe, var):
@@ -61,6 +61,7 @@ def df_weighted_average_grouped(dataframe, groupe, varlist):
             ])
         )
 
+
 def test_survey_simulation():
     year = 2009
     TaxBenefitSystem = openfisca_france_data.init_country()
@@ -74,29 +75,7 @@ def test_survey_simulation():
         tax_benefit_system = reform
         )
 
-    reform_simulation = survey_scenario_reform.new_simulation(debug = False)
-    reform_data_frame_by_entity_key_plural = dict(
-        foyers = pandas.DataFrame(
-            dict([(name, reform_simulation.calculate_add(name)) for name in [
-                'rfr',
-                'irpp',
-                'rbg',
-                'iaidrdi',
-                'rng',
-                'ip_net',
-                'reductions',
-                ]])
-            ),
-        )
-
-    survey_scenario_reference = SurveyScenario().init_from_data_frame(
-        input_data_frame = input_data_frame,
-        used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55'],
-        year = year,
-        tax_benefit_system = tax_benefit_system
-        )
-
-    reference_simulation = survey_scenario_reference.new_simulation(debug = False, reference = True)
+    reference_simulation = survey_scenario_reform.new_simulation(debug = False, reference = True)
     reference_data_frame_by_entity_key_plural = dict(
         foyers = pandas.DataFrame(
             dict([(name, reference_simulation.calculate_add(name)) for name in [
@@ -109,6 +88,21 @@ def test_survey_simulation():
                 'reductions',
                 'decile_rfr',
                 'weight_foyers',
+                ]])
+            ),
+        )
+
+    reform_simulation = survey_scenario_reform.new_simulation(debug = False)
+    reform_data_frame_by_entity_key_plural = dict(
+        foyers = pandas.DataFrame(
+            dict([(name, reform_simulation.calculate_add(name)) for name in [
+                'rfr',
+                'irpp',
+                'rbg',
+                'iaidrdi',
+                'rng',
+                'ip_net',
+                'reductions',
                 ]])
             ),
         )
@@ -141,7 +135,9 @@ if __name__ == '__main__':
     Wconcat = df_weighted_average_grouped(
         dataframe = df,
         groupe = 'decile_rfr',
-        varlist = ['diff_irpp', 'diff_ip_net', 'reform_ip_net', 'reference_ip_net', 'reference_reductions', 'reference_rfr']
+        varlist = [
+            'diff_irpp', 'diff_ip_net', 'reform_ip_net', 'reference_ip_net', 'reference_reductions', 'reference_rfr'
+            ],
         )
     Wconcat['tx_irpp'] = Wconcat['diff_irpp'] / Wconcat['reference_rfr']
     Wconcat['tx_ip'] = Wconcat['reform_ip_net'] / Wconcat['reference_rfr']
@@ -157,10 +153,9 @@ if __name__ == '__main__':
 
 #    (simulation.reductions*simulation.weight_foyers).sum()
 #       2 837 273 843
-    (simulation.irpp*simulation.weight_foyers).sum()
+    (simulation.irpp * simulation.weight_foyers).sum()
 #    - 48 725 131 459
-    (reform.reform_irpp*simulation.weight_foyers).sum()
+    (reform.reform_irpp * simulation.weight_foyers).sum()
 #    - 51 562 300 405
-    (simulation.irpp*simulation.weight_foyers).sum() - (reform.reform_irpp*simulation.weight_foyers).sum()
+    (simulation.irpp * simulation.weight_foyers).sum() - (reform.reform_irpp * simulation.weight_foyers).sum()
 #    2 837 168 946
-

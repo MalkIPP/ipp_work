@@ -24,7 +24,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""OpenFisca-Aggregates -- A plugin that adds aggregates handling to OpenFisca"""
+"""OpenFisca-IPP-work"""
 
 
 from setuptools import setup, find_packages
@@ -42,25 +42,21 @@ doc_lines = __doc__.split('\n')
 
 
 setup(
-    name = 'OpenFisca-Aggregates',
-    version = '0.2dev',
+    name = 'IPP_work',
+    version = '0.1dev',
 
     author = 'OpenFisca Team',
     author_email = 'contact@openfisca.fr',
     classifiers = [classifier for classifier in classifiers.split('\n') if classifier],
     description = doc_lines[0],
-    keywords = 'aggregates benefit microsimulation social tax',
+    keywords = 'ipp benefit microsimulation social tax',
     license = 'http://www.fsf.org/licensing/licenses/agpl-3.0.html',
     long_description = '\n'.join(doc_lines[2:]),
-    url = 'https://github.com/openfisca/openfisca-aggregates',
-
-    entry_points = {
-        'openfisca.plugins': [
-            'aggregates = openfisca_plugin_aggregates:register_plugin',
-            ],
-        },
+    url = 'https://github.com/MalkIPP/ipp_work',
     install_requires = [
         "OpenFisca-Core >= 0.2dev",
+        "OpenFisca-France >= 0.2dev",
+        "OpenFisca-France-Data >= 0.2dev",
         ],
     packages = find_packages(),
     zip_safe = False,
