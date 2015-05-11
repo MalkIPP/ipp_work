@@ -5,13 +5,6 @@ Created on Thu Dec 18 16:40:38 2014
 @author: malkaguillot
 """
 
-import copy
-
-from openfisca_core import periods, reforms, legislations
-
-from openfisca_france.tests.base import tax_benefit_system
-
-
 def get_legislation_value(legislation_json, path, instant_str):
     start = legislation_json['start']
     stop = legislation_json['stop'],

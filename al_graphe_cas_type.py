@@ -76,7 +76,7 @@ def aide_au_logement_by_ressource(year, depcom):
     simulation = base.tax_benefit_system.new_scenario().init_single_entity(
         axes = [
             dict(
-                count = 15000,
+                count = 500,
                 name = 'br_pf_i',
                 max = 15000,
                 min = 0,
