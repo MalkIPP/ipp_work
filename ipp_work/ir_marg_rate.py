@@ -30,6 +30,83 @@ from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
 
 
+def from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, simulation, used_as_input_variables = None):
+    '''
+    En entrée il faut:
+        une input_data_frame
+        une liste des variables nécessaires et leurs entités => il faut le tax_benefit_system
+    Objectif: créer une input_data_frame_by_entity_key_plural
+        Il faut ensuite créer une 2e fonction qui transforme cette df en Array
+        '''
+    assert input_data_frame is not None
+    assert tax_benefit_system is not None
+
+    id_variables = [
+        entity.index_for_person_variable_name for entity in simulation.entity_by_key_singular.values()
+        if not entity.is_persons_entity]
+
+    role_variables = [
+        entity.role_for_person_variable_name for entity in simulation.entity_by_key_singular.values()
+        if not entity.is_persons_entity]
+
+    column_by_name = tax_benefit_system.column_by_name
+
+#        Check 1 (ici ou dans la méthode de classe ?)
+    for column_name in input_data_frame:
+        if column_name not in column_by_name:
+            log.info('Unknown column "{}" in survey, dropped from input table'.format(column_name))
+            # waiting for the new pandas version to hit Travis repo
+            input_data_frame = input_data_frame.drop(column_name, axis = 1)
+            # , inplace = True)  # TODO: effet de bords ?
+
+#        Check 2 (ici ou dans la méthode de classe ?)
+    for column_name in input_data_frame:
+        if column_name in id_variables + role_variables:
+            continue
+#TODO: make that work (MG, may 15)
+#        if column_by_name[column_name].formula_class.function is not None:
+#            if column_name in column_by_name.used_as_input_variables:
+#                log.info(
+#                    'Column "{}" not dropped because present in used_as_input_variabels'.format(column_name))
+#                continue
+#
+#            log.info('Column "{}" in survey set to be calculated, dropped from input table'.format(column_name))
+#            input_data_frame = input_data_frame.drop(column_name, axis = 1)
+            # , inplace = True)  # TODO: effet de bords ?
+
+#   Work on entities
+    for entity in simulation.entity_by_key_singular.values():
+        if entity.is_persons_entity:
+            entity.count = entity.step_size = len(input_data_frame)
+        else:
+            entity.count = entity.step_size = (input_data_frame[entity.role_for_person_variable_name] == 0).sum()
+            entity.roles_count = input_data_frame[entity.role_for_person_variable_name].max() + 1
+
+#   Classify column by entity:
+    columns_by_entity = {}
+    columns_by_entity['individu'] = []
+    columns_by_entity['quifam'] = []
+    columns_by_entity['quifoy'] = []
+    columns_by_entity['quimen'] = []
+    for column_name, column_serie in input_data_frame.iteritems():
+        holder = simulation.get_or_new_holder(column_name)
+        entity = holder.entity
+        if entity.is_persons_entity:
+            columns_by_entity['individu'].append(column_name)
+        else:
+            columns_by_entity[entity.role_for_person_variable_name].append(column_name)
+
+    input_data_frame_by_entity_key_plural = {}
+    for entity in simulation.entity_by_key_singular.values():
+        if entity.is_persons_entity:
+            input_data_frame_by_entity_key_plural['individus'] = \
+                input_data_frame[columns_by_entity['individu']]
+            entity.count = entity.step_size = len(input_data_frame)
+        else:
+            input_data_frame_by_entity_key_plural[entity.index_for_person_variable_name] = \
+                input_data_frame[columns_by_entity[entity.role_for_person_variable_name]][input_data_frame[entity.role_for_person_variable_name] == 0]
+    return input_data_frame_by_entity_key_plural
+
 def test_survey_simulation(increment = 10, target = 'irpp', varying = 'rni'):
     increment = 10
     target = 'irpp'
@@ -38,47 +115,50 @@ def test_survey_simulation(increment = 10, target = 'irpp', varying = 'rni'):
     TaxBenefitSystem = openfisca_france_data.init_country()
     tax_benefit_system = TaxBenefitSystem()
 
-    column_by_name = tax_benefit_system.column_by_name
-    column_by_name['sal'].formula_class.function
-
     input_data_frame = get_input_data_frame(year)
+#    Simulation 1 : get varying and target
     survey_scenario = SurveyScenario().init_from_data_frame(
         input_data_frame = input_data_frame,
         used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55'],
         year = year,
         tax_benefit_system = tax_benefit_system
         )
-    input_data_frame_by_entity_key_plural = survey_scenario.from_input_df_to_entity_key_plural_df()
-
     simulation = survey_scenario.new_simulation(debug = False)
-    simulation_data_frame_by_entity_key_plural = dict(
-        foyers = pandas.DataFrame(
-            dict([(name, simulation.calculate_add(name)) for name in [
-                target, varying
-                ]])
-            ),
-        )
-    simulation_data_frame_by_entity_key_plural['foyers'][varying] = \
-        simulation_data_frame_by_entity_key_plural['foyers'][varying] + increment
-        varying = simulation_data_frame_by_entity_key_plural['foyers'][varying]
-    input_data_frame_incremented = input_data_frame
 
-    return simulation_data_frame_by_entity_key_plural
+    output_data_frame = pandas.DataFrame(
+       dict([(name, simulation.calculate_add(name)) for name in [
+           target, varying, 'idfoy_original'
+           ]]))
 
-ind_vars = ['index', 'idfam', 'idfoy', 'idmen', 'quifam', 'quifoy', 'quimen', 'sal', 'noi', 'age_en_mois']
-fam_vars = ['idfam',]
-foy_vars = ['idfoy','f7ce']
-men_vars = ['idmen',]
-individus = input_data_frame[ind_vars]
-familles = input_data_frame[fam_vars][input_data_frame.quifam == 0]
-foyers = input_data_frame[foy_vars][input_data_frame.quifoy == 0]
-menages = input_data_frame[men_vars][input_data_frame.quimen == 0]
+#    Make input_data_frame_by_entity_key_plural from the previous input_data_frame and simulation
+    input_data_frame_by_entity_key_plural = \
+        from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, simulation)
+    foyers = input_data_frame_by_entity_key_plural['idfoy']
+    foyers = pandas.merge(foyers, output_data_frame, on = 'idfoy_original')
 
-input_data_frame_by_entity_key_plural={}
-input_data_frame_by_entity_key_plural['individus'] = individus
-input_data_frame_by_entity_key_plural['familles'] = familles
-input_data_frame_by_entity_key_plural['foyers'] = foyers
-input_data_frame_by_entity_key_plural['menages'] = menages
+#    Incrementation of varying:
+    foyers[varying] = foyers[varying] + increment
+
+#    On remplace la nouvelle base dans le dictionnaire
+    input_data_frame_by_entity_key_plural['idfoy'] = foyers
+
+#   2e simulation à partir de input_data_frame_by_entity_key_plural:
+#   TODO: fix used_as_input_variabels in the from_input_df_to_entity_key_plural_df() function
+    used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55', varying],
+
+#    survey_scenario = SurveyScenario().init_from_data_frames(
+#        input_data_frames = input_data_frame_by_entity_key_plural,
+#        used_as_input_variables = used_as_input_variables,
+#        year = year,
+#        tax_benefit_system = tax_benefit_system
+#        )
+#    simulation = survey_scenario.new_simulation(debug = False)
+
+#    output_data_frame2 = pandas.DataFrame(
+#       dict([(name, simulation.calculate_add(name)) for name in [
+#           target, varying, 'idfoy_original'
+#           ]]))
+
 
 if __name__ == '__main__':
     import logging
@@ -87,16 +167,3 @@ if __name__ == '__main__':
     import sys
     logging.basicConfig(level = logging.INFO, stream = sys.stdout)
     start = time.time()
-
-    reform_data_frame_by_entity_key_plural, reference_data_frame_by_entity_key_plural \
-        = test_survey_simulation()
-
-    reform = reform_data_frame_by_entity_key_plural['foyers']
-    simulation = reference_data_frame_by_entity_key_plural['foyers']
-#    simulation = reference_data_frame_by_entity_key_plural['foyers']
-
-    for col in ['irpp', 'rng', 'rni']:
-        reform = reform.rename(columns={'{}'.format(col): '{}_ref'.format(col)})
-        simulation = simulation.rename(columns={'{}'.format(col): '{}_sim'.format(col)})
-
-    df_compar = simulation[['irpp_sim', 'rng_sim', 'rni_sim']].merge(reform[['irpp_ref', 'rng_ref', 'rni_ref']], left_index=True, right_index=True)
