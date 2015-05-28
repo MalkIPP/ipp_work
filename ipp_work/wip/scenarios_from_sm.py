@@ -229,29 +229,31 @@ class AbstractSurveyScenario(object):
                 entity.roles_count = input_data_frame[entity.role_for_person_variable_name].max() + 1
 
 # Exemple sur la df ménages :
-        input_data_frame = input_data_frame_by_entity_key_plural['menages']
+    # get input_data_frame_by_entity_key_plural from ?
+        for entity in simulation.entity_by_key_singular.values():
+            input_data_frame = input_data_frame_by_entity_key_plural[entity.index_for_person_variable_name]
 
-# Convert columns from df to array:
-        for column_name, column_serie in input_data_frame.iteritems():
-            holder = simulation.get_or_new_holder(column_name)
-            entity = holder.entity
-            if column_serie.values.dtype != holder.column.dtype:
-                log.info(
-                    'Converting {} from dtype {} to {}'.format(
-                        column_name, column_serie.values.dtype, holder.column.dtype)
-                    )
-            if entity.is_persons_entity:
+    # Convert columns from df to array:
+            for column_name, column_serie in input_data_frame.iteritems():
+                holder = simulation.get_or_new_holder(column_name)
+                entity = holder.entity
+                if column_serie.values.dtype != holder.column.dtype:
+                    log.info(
+                        'Converting {} from dtype {} to {}'.format(
+                            column_name, column_serie.values.dtype, holder.column.dtype)
+                        )
+                if entity.is_persons_entity:
+                        array = column_serie.values.astype(holder.column.dtype)
+                else:
+    #               array = column_serie.values[input_data_frame[entity.role_for_person_variable_name].values == 0].astype(
+    #                    holder.column.dtype)
+    #               Plus besoin de sélectionner sur les qui* puisque c'est déjà fait
                     array = column_serie.values.astype(holder.column.dtype)
-            else:
-#               array = column_serie.values[input_data_frame[entity.role_for_person_variable_name].values == 0].astype(
-#                    holder.column.dtype)
-#               Plus besoin de sélectionner sur les qui* puisque c'est déjà fait
-                array = column_serie.values.astype(holder.column.dtype)
-            assert array.size == entity.count, 'Bad size for {}: {} instead of {}'.format(
-                column_name,
-                array.size,
-                entity.count)
-            holder.array = np.array(array, dtype = holder.column.dtype)
+                assert array.size == entity.count, 'Bad size for {}: {} instead of {}'.format(
+                    column_name,
+                    array.size,
+                    entity.count)
+                holder.array = np.array(array, dtype = holder.column.dtype)
 
         self.simulation = simulation
 
