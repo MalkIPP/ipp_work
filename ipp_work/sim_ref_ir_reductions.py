@@ -31,35 +31,7 @@ import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
 from ipp_work.reforms import ir_reduc
-
-
-def wavg(groupe, var):
-    '''
-    Fonction qui calcule la moyenne pondérée par groupe d'une variable
-    '''
-    d = groupe[var]
-    w = groupe['weight_foyers']
-    return (d * w).sum() / w.sum()
-
-
-def collapse(dataframe, groupe, var):
-    '''
-    Pour une variable, fonction qui calcule la moyenne pondérée au sein de chaque groupe.
-    '''
-    grouped = dataframe.groupby([groupe])
-    var_weighted_grouped = grouped.apply(lambda x: wavg(groupe = x, var = var))
-    return var_weighted_grouped
-
-
-def df_weighted_average_grouped(dataframe, groupe, varlist):
-    '''
-    Agrège les résultats de weighted_average_grouped() en une unique dataframe pour la liste de variable 'varlist'.
-    '''
-    return pandas.DataFrame(
-        dict([
-            (var, collapse(dataframe, groupe, var)) for var in varlist
-            ])
-        )
+from ipp_work.utils import df_weighted_average_grouped
 
 
 def test_survey_simulation():

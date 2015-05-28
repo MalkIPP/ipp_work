@@ -30,12 +30,10 @@ Created on Tue May  5 14:35:00 2015
 # along with this program,  If not, see <http://www.gnu.org/licenses/>.
 
 
-import pandas
 import datetime
 from openfisca_france.reforms import reform_cd
 
 from openfisca_france.tests import base
-
 
 
 def castype(year):

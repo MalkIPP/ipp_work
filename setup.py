@@ -54,9 +54,9 @@ setup(
     long_description = '\n'.join(doc_lines[2:]),
     url = 'https://github.com/MalkIPP/ipp_work',
     install_requires = [
-        "OpenFisca-Core >= 0.2dev",
-        "OpenFisca-France >= 0.2dev",
-        "OpenFisca-France-Data >= 0.2dev",
+        "OpenFisca-Core",
+        "OpenFisca-France",
+        "OpenFisca-France-Data",
         ],
     packages = find_packages(),
     zip_safe = False,
