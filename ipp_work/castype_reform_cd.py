@@ -31,7 +31,7 @@ Created on Tue May  5 14:35:00 2015
 
 
 import datetime
-from openfisca_france.reforms import reform_cd
+from ipp_work.reforms import reform_cd
 
 from openfisca_france.tests import base
 
@@ -45,7 +45,7 @@ def castype(year):
                 count = 10,
                 max = 13795 * (1 + .1) * (1 + .03),
                 min = 13795 * (1 + .1) * (1 - .03),
-                name = 'sal',
+                name = 'salaire_imposable',
                 ),
             ],
         period = year,

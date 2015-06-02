@@ -30,7 +30,7 @@ import logging
 from numpy import maximum as max_
 from openfisca_core import formulas, reforms
 
-from ..model.prelevements_obligatoires.impot_revenu import ir
+from openfisca_france.model.prelevements_obligatoires.impot_revenu import ir
 
 
 log = logging.getLogger(__name__)

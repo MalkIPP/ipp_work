@@ -24,10 +24,14 @@
 
 
 import pandas
+import logging
 
 import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
+from openfisca_core.rates import average_rate
+
+log = logging.getLogger(__name__)
 
 
 def from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, simulation, used_as_input_variables = None):
@@ -63,7 +67,7 @@ def from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, 
     for column_name in input_data_frame:
         if column_name in id_variables + role_variables:
             continue
-#TODO: make that work (MG, may 15)
+#TODO: make that work ? (MG, may 15)
 #        if column_by_name[column_name].formula_class.function is not None:
 #            if column_name in column_by_name.used_as_input_variables:
 #                log.info(
@@ -107,7 +111,13 @@ def from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, 
                 input_data_frame[columns_by_entity[entity.role_for_person_variable_name]][input_data_frame[entity.role_for_person_variable_name] == 0]
     return input_data_frame_by_entity_key_plural
 
-def test_survey_simulation(increment = 10, target = 'irpp', varying = 'rni'):
+
+def marginal_rate_survey(df, target = None, target_2 = None, varying = None, varying_2 = None):
+    # target: numerator, varying: denominator
+    return 1 - (df[target] - df[target_2]) / (df[varying] - df[varying_2])
+
+
+def test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni'):
     increment = 10
     target = 'irpp'
     varying = 'rni'
@@ -131,33 +141,43 @@ def test_survey_simulation(increment = 10, target = 'irpp', varying = 'rni'):
            ]]))
 
 #    Make input_data_frame_by_entity_key_plural from the previous input_data_frame and simulation
-    input_data_frame_by_entity_key_plural = \
+    input_data_frames_by_entity_key_plural = \
         from_input_df_to_entity_key_plural_df(input_data_frame, tax_benefit_system, simulation)
-    foyers = input_data_frame_by_entity_key_plural['idfoy']
+    foyers = input_data_frames_by_entity_key_plural['idfoy']
     foyers = pandas.merge(foyers, output_data_frame, on = 'idfoy_original')
 
 #    Incrementation of varying:
     foyers[varying] = foyers[varying] + increment
 
 #    On remplace la nouvelle base dans le dictionnaire
-    input_data_frame_by_entity_key_plural['idfoy'] = foyers
+    input_data_frames_by_entity_key_plural['idfoy'] = foyers
 
 #   2e simulation à partir de input_data_frame_by_entity_key_plural:
 #   TODO: fix used_as_input_variabels in the from_input_df_to_entity_key_plural_df() function
-    used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55', varying],
+    used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55', varying]
+    TaxBenefitSystem = openfisca_france_data.init_country()
+    tax_benefit_system = TaxBenefitSystem()
 
-#    survey_scenario = SurveyScenario().init_from_data_frames(
-#        input_data_frames = input_data_frame_by_entity_key_plural,
-#        used_as_input_variables = used_as_input_variables,
-#        year = year,
-#        tax_benefit_system = tax_benefit_system
-#        )
-#    simulation = survey_scenario.new_simulation(debug = False)
+    survey_scenario = SurveyScenario().init_from_data_frame(
+        input_data_frame = None,
+        input_data_frames_by_entity_key_plural = input_data_frames_by_entity_key_plural,
+        used_as_input_variables = used_as_input_variables,
+        year = year,
+        tax_benefit_system = tax_benefit_system,
+        )
+    simulation = survey_scenario.new_simulation(debug = False)
 
-#    output_data_frame2 = pandas.DataFrame(
-#       dict([(name, simulation.calculate_add(name)) for name in [
-#           target, varying, 'idfoy_original'
-#           ]]))
+    output_data_frame2 = pandas.DataFrame(
+       dict([(name, simulation.calculate_add(name)) for name in [
+           target, varying, 'idfoy_original'
+           ]]))
+    output_data_frame2.rename(columns = {varying: '{}_2'.format(varying),
+                                         target: '{}_2'.format(target)}, inplace = True)
+    merged = pandas.merge(output_data_frame, output_data_frame2, on = 'idfoy_original')
+    merged['marginal_rate'] = marginal_rate_survey(merged, '{}'.format(target), '{}_2'.format(target), 'rni', 'rni_2')
+    merged['average_rate'] = average_rate(target =merged[target], varying = merged[varying])
+    return merged
+
 
 
 if __name__ == '__main__':
@@ -167,3 +187,4 @@ if __name__ == '__main__':
     import sys
     logging.basicConfig(level = logging.INFO, stream = sys.stdout)
     start = time.time()
+    merged = test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni')
