@@ -30,15 +30,15 @@ import matplotlib.pyplot as plt
 import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
-from openfisca_france.reforms import ir_reduc
-from ipp_work import df_weighted_average_grouped
+from ipp_work.reforms import ir_reduc
+from ipp_work.utils import df_weighted_average_grouped
+
 
 def df_survey_simulation(reductions):
     year = 2009
     TaxBenefitSystem = openfisca_france_data.init_country()
     tax_benefit_system = TaxBenefitSystem()
     input_data_frame = get_input_data_frame(year)
-
 
     survey_scenario_reference = SurveyScenario().init_from_data_frame(
         input_data_frame = input_data_frame,
@@ -49,10 +49,10 @@ def df_survey_simulation(reductions):
 
     simulation = survey_scenario_reference.new_simulation()
 
-    from openfisca_core import periods
-    period = periods.period('year', 2007)
-    period = period.start.offset('first-of', 'month').period('year')
-    bareme = simulation.legislation_at(period.start).ir.bareme
+#    from openfisca_core import periods
+#    period = periods.period('year', 2007)
+#    period = period.start.offset('first-of', 'month').period('year')
+#    bareme = simulation.legislation_at(period.start).ir.bareme
 
     data_frame_by_entity_key_plural = dict(
         foyers = pandas.DataFrame(
@@ -94,7 +94,6 @@ if __name__ == '__main__':
                       'ecodev',
                       'ecpess',
                       'intagr',
-                      'invfor',
                       'invlst',
                       'locmeu',
                       'mohist',

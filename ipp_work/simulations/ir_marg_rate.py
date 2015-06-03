@@ -30,6 +30,7 @@ import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
 from openfisca_core.rates import average_rate
+from ipp_work.utils import from_simulation_to_data_frame_by_entity_key_plural
 
 log = logging.getLogger(__name__)
 
@@ -117,11 +118,7 @@ def marginal_rate_survey(df, target = None, target_2 = None, varying = None, var
     return 1 - (df[target] - df[target_2]) / (df[varying] - df[varying_2])
 
 
-def test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni'):
-    increment = 10
-    target = 'irpp'
-    varying = 'rni'
-    year = 2009
+def varying_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni', used_as_input_variables = None):
     TaxBenefitSystem = openfisca_france_data.init_country()
     tax_benefit_system = TaxBenefitSystem()
 
@@ -129,7 +126,7 @@ def test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying
 #    Simulation 1 : get varying and target
     survey_scenario = SurveyScenario().init_from_data_frame(
         input_data_frame = input_data_frame,
-        used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55'],
+        used_as_input_variables = used_as_input_variables,
         year = year,
         tax_benefit_system = tax_benefit_system
         )
@@ -154,7 +151,7 @@ def test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying
 
 #   2e simulation à partir de input_data_frame_by_entity_key_plural:
 #   TODO: fix used_as_input_variabels in the from_input_df_to_entity_key_plural_df() function
-    used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55', varying]
+    used_as_input_variables = used_as_input_variables + [varying]
     TaxBenefitSystem = openfisca_france_data.init_country()
     tax_benefit_system = TaxBenefitSystem()
 
@@ -175,9 +172,8 @@ def test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying
                                          target: '{}_2'.format(target)}, inplace = True)
     merged = pandas.merge(output_data_frame, output_data_frame2, on = 'idfoy_original')
     merged['marginal_rate'] = marginal_rate_survey(merged, '{}'.format(target), '{}_2'.format(target), 'rni', 'rni_2')
-    merged['average_rate'] = average_rate(target =merged[target], varying = merged[varying])
+    merged['average_rate'] = average_rate(target = merged[target], varying = merged[varying])
     return merged
-
 
 
 if __name__ == '__main__':
@@ -187,4 +183,6 @@ if __name__ == '__main__':
     import sys
     logging.basicConfig(level = logging.INFO, stream = sys.stdout)
     start = time.time()
-    merged = test_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni')
+    used_as_input_variables = ['salaire_imposable', 'cho', 'rst', 'age_en_mois', 'smic55']
+    merged = varying_survey_simulation(year = 2009, increment = 10, target = 'irpp', varying = 'rni',
+                                    used_as_input_variables = used_as_input_variables)
