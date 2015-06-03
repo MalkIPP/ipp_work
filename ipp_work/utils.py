@@ -32,6 +32,7 @@ Created on Tue May  5 11:54:08 2015
 
 import pandas
 
+import openfisca_france_data
 from openfisca_france_data.input_data_builders import get_input_data_frame
 from openfisca_france_data.surveys import SurveyScenario
 
@@ -65,6 +66,30 @@ def df_weighted_average_grouped(dataframe, groupe, varlist):
         )
 
 
+def from_simulation_to_data_frame_by_entity_key_plural(simulation, ind_variables = None, fam_variables = None,
+                                                       foy_variables = None, men_variables = None):
+    '''
+    '''
+    data_frame_by_entity_key_plural = dict()
+    if ind_variables is not None:
+        data_frame_by_entity_key_plural['individus'] = pandas.DataFrame(
+            dict([(name, simulation.calculate(name)) for name in ind_variables])
+            )
+    if fam_variables is not None:
+        data_frame_by_entity_key_plural['familles'] = pandas.DataFrame(
+            dict([(name, simulation.calculate(name)) for name in fam_variables])
+            )
+    if foy_variables is not None:
+        data_frame_by_entity_key_plural['foyers'] = pandas.DataFrame(
+            dict([(name, simulation.calculate(name)) for name in foy_variables])
+            )
+    if men_variables is not None:
+        data_frame_by_entity_key_plural['menages'] = pandas.DataFrame(
+            dict([(name, simulation.calculate(name)) for name in men_variables])
+            )
+    return data_frame_by_entity_key_plural
+
+
 def survey_simulate(used_as_input_variables, year, ind_variables = None, fam_variables = None, foy_variables = None,
                     men_variables = None):
     year = year
@@ -76,23 +101,40 @@ def survey_simulate(used_as_input_variables, year, ind_variables = None, fam_var
         )
     simulation = survey_scenario.new_simulation()
 
-    data_frame_by_entity_key_plural = dict(
-        individus = pandas.DataFrame(
-            dict([(name, simulation.calculate(name)) for name in
-            ind_variables])
-            ),
-#        familles = pandas.DataFrame(
-#            dict([(name, simulation.calculate_add(name)) for name in fam_variables])
-#            ),
-        foyers = pandas.DataFrame(
-            dict([(name, simulation.calculate_add(name)) for name in foy_variables])
-            ),
-#        menages = pandas.DataFrame(
-#            dict([(name, simulation.calculate(name)) for name in men_variables])
-#            ),
-        )
+    data_frame_by_entity_key_plural = from_simulation_to_data_frame_by_entity_key_plural(
+        simulation, ind_variables, fam_variables, foy_variables, men_variables)
 
     return data_frame_by_entity_key_plural, simulation
+
+
+def reform_survey_simulation(reform = None, year = None, ind_variables = None, fam_variables = None,
+                             foy_variables = None, men_variables = None, used_as_input_variables = None,
+                             reform_specific_foy_variables = None):
+    assert reform is not None
+    assert year is not None
+
+    TaxBenefitSystem = openfisca_france_data.init_country()
+    tax_benefit_system = TaxBenefitSystem()
+    reform = reform.build_reform(tax_benefit_system)
+    input_data_frame = get_input_data_frame(year)
+    survey_scenario_reform = SurveyScenario().init_from_data_frame(
+        input_data_frame = input_data_frame,
+        used_as_input_variables = used_as_input_variables,
+        year = year,
+        tax_benefit_system = reform
+        )
+
+    reference_simulation = survey_scenario_reform.new_simulation(debug = False, reference = True)
+
+    reference_data_frame_by_entity_key_plural = from_simulation_to_data_frame_by_entity_key_plural(
+        reference_simulation, ind_variables, fam_variables, foy_variables, men_variables)
+
+    reform_simulation = survey_scenario_reform.new_simulation(debug = False)
+
+    reform_data_frame_by_entity_key_plural = from_simulation_to_data_frame_by_entity_key_plural(
+        reform_simulation, ind_variables, fam_variables, foy_variables + reform_specific_foy_variables, men_variables)
+
+    return reform_data_frame_by_entity_key_plural, reference_data_frame_by_entity_key_plural
 
 
 if __name__ == '__main__':
@@ -103,9 +145,12 @@ if __name__ == '__main__':
     year = 2009
 #    ind_variables = ['idmen', 'quimen', 'idfoy', 'quifoy', 'idfam', 'quifam', 'age', 'champm_individus', 'sal',
 #                     'salaire_net']
-    ind_variables = ['idmen', 'quimen', 'idfoy', 'sal', 'salaire_net']
+    ind_variables = ['idmen', 'quimen', 'idfoy', 'salaire_imposable', 'salaire_net']
     foy_variables = ['irpp']
-    used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55']
+    used_as_input_variables = ['salaire_imposable', 'cho', 'rst', 'age_en_mois', 'smic55']
     df_by_entity_key_plural, simulation = survey_simulate(used_as_input_variables, year, ind_variables,
                                                           foy_variables = foy_variables)
     df_individus = df_by_entity_key_plural['individus']
+
+    data_frame_by_entity_key_plural = from_simulation_to_data_frame_by_entity_key_plural(
+        simulation = simulation, ind_variables = ind_variables, foy_variables = foy_variables)

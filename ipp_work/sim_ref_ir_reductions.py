@@ -27,59 +27,8 @@ import pandas
 import matplotlib.pyplot as plt
 
 
-import openfisca_france_data
-from openfisca_france_data.input_data_builders import get_input_data_frame
-from openfisca_france_data.surveys import SurveyScenario
 from ipp_work.reforms import ir_reduc
-from ipp_work.utils import df_weighted_average_grouped
-
-
-def test_survey_simulation():
-    year = 2009
-    TaxBenefitSystem = openfisca_france_data.init_country()
-    tax_benefit_system = TaxBenefitSystem()
-    reform = ir_reduc.build_reform(tax_benefit_system)
-    input_data_frame = get_input_data_frame(year)
-    survey_scenario_reform = SurveyScenario().init_from_data_frame(
-        input_data_frame = input_data_frame,
-        used_as_input_variables = ['sal', 'cho', 'rst', 'age_en_mois', 'smic55'],
-        year = year,
-        tax_benefit_system = reform
-        )
-
-    reference_simulation = survey_scenario_reform.new_simulation(debug = False, reference = True)
-    reference_data_frame_by_entity_key_plural = dict(
-        foyers = pandas.DataFrame(
-            dict([(name, reference_simulation.calculate_add(name)) for name in [
-                'rfr',
-                'irpp',
-                'rbg',
-                'iaidrdi',
-                'rng',
-                'ip_net',
-                'reductions',
-                'decile_rfr',
-                'weight_foyers',
-                ]])
-            ),
-        )
-
-    reform_simulation = survey_scenario_reform.new_simulation(debug = False)
-    reform_data_frame_by_entity_key_plural = dict(
-        foyers = pandas.DataFrame(
-            dict([(name, reform_simulation.calculate_add(name)) for name in [
-                'rfr',
-                'irpp',
-                'rbg',
-                'iaidrdi',
-                'rng',
-                'ip_net',
-                'reductions',
-                ]])
-            ),
-        )
-
-    return reform_data_frame_by_entity_key_plural, reference_data_frame_by_entity_key_plural
+from ipp_work.utils import df_weighted_average_grouped, reform_survey_simulation
 
 
 if __name__ == '__main__':
@@ -90,16 +39,24 @@ if __name__ == '__main__':
     logging.basicConfig(level = logging.INFO, stream = sys.stdout)
     start = time.time()
 
+    year = 2009
+    reform = ir_reduc
+    ind_variables = ['idmen', 'quimen', 'idfoy', 'salaire_imposable', 'salaire_net']
+    fam_variables = None
+    foy_variables = ['rfr', 'irpp', 'rbg', 'iaidrdi', 'rng', 'ip_net', 'reductions']
+    men_variables = None
+    reform_specific_foy_variables = ['decile_rfr', 'weight_foyers']
+    used_as_input_variables = ['salaire_imposable', 'cho', 'rst', 'age_en_mois', 'smic55']
     reform_data_frame_by_entity_key_plural, reference_data_frame_by_entity_key_plural \
-        = test_survey_simulation()
+        = reform_survey_simulation(reform, year, ind_variables, fam_variables, foy_variables, men_variables,
+                                   used_as_input_variables, reform_specific_foy_variables)
 
     reform = reform_data_frame_by_entity_key_plural['foyers']
     reference = reference_data_frame_by_entity_key_plural['foyers']
     simulation = reference_data_frame_by_entity_key_plural['foyers']
-    for col in reform.columns:
+    for col in reform.columns.drop(['decile_rfr', 'weight_foyers']):
         reform = reform.rename(columns={'{}'.format(col): 'reform_{}'.format(col)})
-    columns = reference.columns.drop(['decile_rfr', 'weight_foyers'])
-    for col in columns:
+    for col in reference.columns:
         reference = reference.rename(columns={'{}'.format(col): 'reference_{}'.format(col)})
     df = pandas.concat([reference, reform], axis = 1)
     df['diff_irpp'] = df.reference_irpp - df.reform_irpp
@@ -123,11 +80,12 @@ if __name__ == '__main__':
     df_to_plot.plot(kind = 'bar', stacked = True)
     plt.axhline(0, color = 'k')
 
-#    (simulation.reductions*simulation.weight_foyers).sum()
+    (df.reference_reductions*df.weight_foyers).sum()
 #       2 837 273 843
-    (simulation.irpp * simulation.weight_foyers).sum()
+    (df.reference_irpp * df.weight_foyers).sum()
 #    - 48 725 131 459
-    (reform.reform_irpp * simulation.weight_foyers).sum()
+    (df.reform_irpp * df.weight_foyers).sum()
 #    - 51 562 300 405
-    (simulation.irpp * simulation.weight_foyers).sum() - (reform.reform_irpp * simulation.weight_foyers).sum()
-#    2 837 168 946
+    (df.reference_irpp * df.weight_foyers).sum() - (df.reform_irpp * df.weight_foyers).sum()
+#    2 745 569 678
+
